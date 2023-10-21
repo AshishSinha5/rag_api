@@ -1,1 +1,7 @@
 */data/
+*/__pycache__/
+*/.pytest_cache/
+*/.mypy_cache/
+*/.tox/
+*/.venv/
+*/.eggs/

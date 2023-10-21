@@ -29,7 +29,8 @@ def initialize_vector_db(chroma_client, collection_name):
     return collection
 
 
-def create_vector_db(docs, model_name):
+def create_vector_db(docs, model_name, collection_name):
+    
     # create the open-source embedding function
     embedding_function = SentenceTransformerEmbeddings(model_name=model_name, 
                                                        model_kwargs= 
@@ -39,7 +40,7 @@ def create_vector_db(docs, model_name):
     db = Chroma.from_documents(documents = docs, 
                                embedding = embedding_function, 
                                persist_directory = '../data',
-                               collection_name = "test_collection")
+                               collection_name = collection_name)
     return db
 
 
