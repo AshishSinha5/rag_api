@@ -3,14 +3,13 @@ from typing import Optional
 from pathlib import Path
 
 import torch
-
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Path as PathParam, Query, File, UploadFile
 from pydantic import BaseModel, Field
 
 from load_data import load_split_pdf_file, load_split_html_file, initialize_splitter
 from load_llm import load_lamma_cpp
-from vector_db import initialize_vector_db, create_vector_db, load_local_db
+from vector_db import create_vector_db, load_local_db
 from prompts import create_prompt
 from utils import read_file
 
@@ -25,7 +24,7 @@ db_name = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load the ML model
-    model_path = "/home/models/llama.cpp/llama-2-13b.Q8_0.gguf"
+    model_path = "/home/models/llama.cpp/llama-2-7b.gguf.q8_0.bin"
     model_args = {'n_gpu_layers': 500,
                   'n_batch': 32,
                   'max_tokens': 500,
@@ -34,6 +33,7 @@ async def lifespan(app: FastAPI):
                   'device': device}
     llm = load_lamma_cpp(model_path, model_args)
     ml_models["answer_to_query"] = llm
+    # ml_models["answer_to_query"] = fake_output
     yield
     # Clean up the ML models and release the resources
     ml_models.clear()
@@ -76,9 +76,7 @@ def upload_file(file: UploadFile = File(...), collection_name : Optional[str] = 
 
 @app.get("/query")
 def query(query : str, n_results : Optional[int] = 2, collection_name : Optional[str] = "test_collection"):
-    persistant_dir = "../data/"
-    # collection_name = "test_collection"
-    collection = load_local_db(persistant_dir, collection_name)
+    collection = load_local_db(collection_name)
     results = collection.query(query_texts=[query], n_results = n_results)
     prompt = create_prompt(query, results)
     output = ml_models["answer_to_query"](prompt)
