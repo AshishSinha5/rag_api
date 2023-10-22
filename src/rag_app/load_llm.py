@@ -6,8 +6,7 @@ os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"]="python"
 
 from langchain.llms import LlamaCpp
 
-def load_lamma_cpp(model_path, model_args):
-    llm = LlamaCpp(model_path=model_path,
-                   **model_args)
+def load_lamma_cpp(model_args):
+    llm = LlamaCpp(**model_args)
 
     return llm

@@ -1,6 +1,8 @@
 import argparse
 from typing import Optional
 from pathlib import Path
+from pydantic import BaseModel
+from pydantic import Field
 
 import torch
 from contextlib import asynccontextmanager
@@ -20,33 +22,61 @@ def fake_output(x: float):
 
 ml_models = {}
 db_name = {}
+LLAMA_MODEL_PATH = "/home/models/llama.cpp/llama-2-7b.gguf.q8_0.bin"
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Load the ML model
-    model_path = "/home/models/llama.cpp/llama-2-7b.gguf.q8_0.bin"
-    model_args = {'n_gpu_layers': 500,
-                  'n_batch': 32,
-                  'max_tokens': 500,
-                  'n_ctx': 4096,
-                  'temperature': 0,
-                  'device': device}
-    llm = load_lamma_cpp(model_path, model_args)
-    ml_models["answer_to_query"] = llm
-    # ml_models["answer_to_query"] = fake_output
-    yield
-    # Clean up the ML models and release the resources
-    ml_models.clear()
+# class Llama_model_args(BaseModel):
+#     model_path: str = "/home/models/llama.cpp/llama-2-7b.gguf.q8_0.bin"
+#     n_gpu_layers: int = 500
+#     n_batch: int = 32
+#     max_tokens: int = 500
+#     n_ctx: int = 4096
+#     temperature: int = 0
+#     device: str = device
+
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     # Load the ML model
+#     model_path = "/home/models/llama.cpp/llama-2-7b.gguf.q8_0.bin"
+#     model_args = {'n_gpu_layers': 500,
+#                   'n_batch': 32,
+#                   'max_tokens': 500,
+#                   'n_ctx': 4096,
+#                   'temperature': 0,
+#                   'device': device}
+#     llm = load_lamma_cpp(model_path, model_args)
+#     ml_models["answer_to_query"] = llm
+#     # ml_models["answer_to_query"] = fake_output
+#     yield
+#     # Clean up the ML models and release the resources
+#     ml_models.clear()
 
 app = FastAPI(
     title="RAG_APP",
     description="Retrival Augmented Generation APP which let's user upload a file and get the answer for the question using LLMs",
-    lifespan=lifespan
 )
 
 @app.get("/")
 def index():
     return {"message": "Hello World"}
+
+
+@app.get("/init_llm")
+def init_llama_llm(n_gpu_layers: int = Query(500, description="Number of layers to load in GPU"),
+                n_batch: int = Query(32, description="Number of tokens to process in parallel. Should be a number between 1 and n_ctx."),
+                max_tokens: int = Query(300, description="The maximum number of tokens to generate."),
+                n_ctx: int = Query(4096, description="Token context window."),
+                temperature: int = Query(0, description="Temperature for sampling. Higher values means more random samples.")):
+    model_path = LLAMA_MODEL_PATH
+    model_args = {'model_path' : model_path,
+                  'n_gpu_layers': n_gpu_layers,
+                  'n_batch': n_batch,
+                  'max_tokens': max_tokens,
+                  'n_ctx': n_ctx,
+                  'temperature': temperature,
+                  'device': device}
+    llm = load_lamma_cpp(model_args)
+    ml_models["answer_to_query"] = llm
+    return {"message": "LLM initialized"}
 
 text_splitter = initialize_splitter(chunk_size = 1000, chunk_overlap = 100)
 model_name = "all-MiniLM-L6-v2"
