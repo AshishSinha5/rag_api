@@ -1,0 +1,7 @@
+model_path : "/home/models/llama.cpp/llama-2-7b.gguf.q8_0.bin"
+n_gpu_layers : 500
+n_batch: 32
+max_tokens: 500
+n_ctx: 4096
+temperature: 0
+device: device
