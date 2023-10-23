@@ -49,6 +49,7 @@ def create_vector_db(docs, model_name, collection_name):
         embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=model_name,
                                                                                      device = device)
         collection = chroma_client.create_collection(name=collection_name, embedding_function = embedding_function) 
+        register_collection(collection_name)
          
     num_ids = collection.count()
     num_docs = len(docs)    
