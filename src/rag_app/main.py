@@ -13,7 +13,7 @@ from load_data import load_split_pdf_file, load_split_html_file, initialize_spli
 from load_llm import load_lamma_cpp
 from vector_db import create_vector_db, load_local_db
 from prompts import create_prompt
-from utils import read_file
+from utils import read_file, load_yaml_file
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -22,37 +22,25 @@ def fake_output(x: float):
 
 ml_models = {}
 db_name = {}
-LLAMA_MODEL_PATH = "/home/models/llama.cpp/llama-2-7b.gguf.q8_0.bin"
+model_args = load_yaml_file("llama2_config.yaml")
+text_splitter = initialize_splitter(chunk_size = 1000, chunk_overlap = 100)
+vector_db_model_name = "all-MiniLM-L6-v2"
 
-# class Llama_model_args(BaseModel):
-#     model_path: str = "/home/models/llama.cpp/llama-2-7b.gguf.q8_0.bin"
-#     n_gpu_layers: int = 500
-#     n_batch: int = 32
-#     max_tokens: int = 500
-#     n_ctx: int = 4096
-#     temperature: int = 0
-#     device: str = device
 
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     # Load the ML model
-#     model_path = "/home/models/llama.cpp/llama-2-7b.gguf.q8_0.bin"
-#     model_args = {'n_gpu_layers': 500,
-#                   'n_batch': 32,
-#                   'max_tokens': 500,
-#                   'n_ctx': 4096,
-#                   'temperature': 0,
-#                   'device': device}
-#     llm = load_lamma_cpp(model_path, model_args)
-#     ml_models["answer_to_query"] = llm
-#     # ml_models["answer_to_query"] = fake_output
-#     yield
-#     # Clean up the ML models and release the resources
-#     ml_models.clear()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Load the ML model
+    llm = load_lamma_cpp(model_args)
+    ml_models["answer_to_query"] = llm
+    # ml_models["answer_to_query"] = fake_output
+    yield
+    # Clean up the ML models and release the resources
+    ml_models.clear()
 
 app = FastAPI(
     title="RAG_APP",
     description="Retrival Augmented Generation APP which let's user upload a file and get the answer for the question using LLMs",
+    lifespan=lifespan
 )
 
 @app.get("/")
@@ -60,13 +48,15 @@ def index():
     return {"message": "Hello World"}
 
 
+
+# the model initialized when the app gets loaded but we can configure it if we want
 @app.get("/init_llm")
 def init_llama_llm(n_gpu_layers: int = Query(500, description="Number of layers to load in GPU"),
                 n_batch: int = Query(32, description="Number of tokens to process in parallel. Should be a number between 1 and n_ctx."),
                 max_tokens: int = Query(300, description="The maximum number of tokens to generate."),
                 n_ctx: int = Query(4096, description="Token context window."),
                 temperature: int = Query(0, description="Temperature for sampling. Higher values means more random samples.")):
-    model_path = LLAMA_MODEL_PATH
+    model_path = model_args["model_path"]
     model_args = {'model_path' : model_path,
                   'n_gpu_layers': n_gpu_layers,
                   'n_batch': n_batch,
@@ -77,9 +67,6 @@ def init_llama_llm(n_gpu_layers: int = Query(500, description="Number of layers 
     llm = load_lamma_cpp(model_args)
     ml_models["answer_to_query"] = llm
     return {"message": "LLM initialized"}
-
-text_splitter = initialize_splitter(chunk_size = 1000, chunk_overlap = 100)
-model_name = "all-MiniLM-L6-v2"
 
 @app.post("/upload")
 def upload_file(file: UploadFile = File(...), collection_name : Optional[str] = "test_collection"):
@@ -94,10 +81,12 @@ def upload_file(file: UploadFile = File(...), collection_name : Optional[str] = 
     
     if file.filename.endswith('.pdf'):
         data = load_split_pdf_file(f'../data/{file.filename}', text_splitter)
+    elif file.filename.endswith('.html'):
+        data = load_split_html_file(f'../data/{file.filename}', text_splitter)
     else:
-        return {"message" : "Only PDF files permitted"}
+        return {"message": "Only pdf and html files are supported"}
     
-    db = create_vector_db(data, model_name, collection_name)
+    db = create_vector_db(data, vector_db_model_name, collection_name)
 
 
     return {"message": f"Successfully uploaded {file.filename}", 
@@ -106,6 +95,15 @@ def upload_file(file: UploadFile = File(...), collection_name : Optional[str] = 
 
 @app.get("/query")
 def query(query : str, n_results : Optional[int] = 2, collection_name : Optional[str] = "test_collection"):
+    try:
+        collection_list = read_file('COLLECTIONS.txt')
+        collection_list = collection_list.split("\n")[:-1]
+    except Exception:
+        return {"message": "No collections found uplaod some documents first"}
+
+    if collection_name not in collection_list:
+        return {"message": f"There is no collection with name {collection_name}",
+                "available_collections" : collection_list}
     collection = load_local_db(collection_name)
     results = collection.query(query_texts=[query], n_results = n_results)
     prompt = create_prompt(query, results)
