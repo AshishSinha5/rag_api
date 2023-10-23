@@ -1,8 +1,8 @@
 */data/
-*/__pycache__/
+**/__pycache__/
 */.pytest_cache/
 */.mypy_cache/
 */.tox/
 */.venv/
 */.eggs/
-*/COLLECTIONS.txt
+src/rag_app/COLLECTIONS.txt
