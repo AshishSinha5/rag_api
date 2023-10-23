@@ -16,15 +16,15 @@ Welcome to the Retrieval Augmented Generation (RAG) repository! This project emp
 </p>
 
 ## Table of Content
-- Getting Started
-    - Prerequisites
-    - Installation 
-- Usage
-    - Starting the Server
-    - Upload Doc end point
-    - Query End Point
-- Advanced Configuration
-    - Configure LLm Endpoint
+- [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+- [Usage](#usage)
+    - [Starting the Server](#starting-the-server)
+    - [Upload Document](#upload-document)
+    - [QnA](#query-document)
+- [Advanced Configuration](#advanced-configuration)
+    - [Configure LLm Endpoint](#configure-llm-parameters)
 
 
 ## Getting Started
